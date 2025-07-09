@@ -5,22 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 
-export default function TestAPIPage() {
-  const [results, setResults] = useState("")
-  const [videoId, setVideoId] = useState("dQw4w9WgXcQ") // Rick Roll
+export default function APITestPage() {
+  const [testResults, setTestResults] = useState<string>("")
+  const [videoId, setVideoId] = useState("dQw4w9WgXcQ") // Rick Roll - known to have captions
   const [isLoading, setIsLoading] = useState(false)
-
-  const addResult = (message: string) => {
-    setResults((prev) => prev + "\n" + message)
-    console.log(message)
-  }
 
   const testAPI = async (endpoint: string, method = "GET", body?: any) => {
     try {
-      addResult(`\n=== Testing ${method} ${endpoint} ===`)
-
+      setIsLoading(true)
       const response = await fetch(endpoint, {
         method,
         headers: {
@@ -29,110 +22,67 @@ export default function TestAPIPage() {
         body: body ? JSON.stringify(body) : undefined,
       })
 
-      addResult(`Status: ${response.status} ${response.statusText}`)
+      const data = await response.json()
 
-      const responseText = await response.text()
-      addResult(`Raw Response: ${responseText.substring(0, 500)}...`)
-
-      try {
-        const data = JSON.parse(responseText)
-        addResult(`Parsed JSON: ${JSON.stringify(data, null, 2)}`)
-        return { success: response.ok, data }
-      } catch (parseError) {
-        addResult(`JSON Parse Error: ${parseError.message}`)
-        return { success: false, error: "Invalid JSON response" }
-      }
+      setTestResults(
+        (prev) =>
+          prev +
+          `\n\n=== ${method} ${endpoint} ===\n` +
+          `Status: ${response.status}\n` +
+          `Response: ${JSON.stringify(data, null, 2)}`,
+      )
     } catch (error) {
-      addResult(`FETCH ERROR: ${error.message}`)
-      return { success: false, error: error.message }
-    }
-  }
-
-  const runTests = async () => {
-    setIsLoading(true)
-    setResults("🚀 Starting API tests...\n")
-
-    try {
-      // Test 1: Health check
-      addResult("\n🏥 HEALTH CHECK")
-      await testAPI("/api/health")
-
-      // Test 2: Video info
-      addResult("\n📺 VIDEO INFO")
-      await testAPI("/api/video-info", "POST", { videoId })
-
-      // Test 3: Transcribe
-      addResult("\n🎯 TRANSCRIBE")
-      const transcribeResult = await testAPI("/api/transcribe", "POST", {
-        videoId,
-        language: "en",
-      })
-
-      if (transcribeResult.success) {
-        addResult("\n✅ TRANSCRIPTION SUCCESS!")
-      } else {
-        addResult("\n❌ TRANSCRIPTION FAILED")
-      }
-    } catch (error) {
-      addResult(`\n💥 Test error: ${error.message}`)
+      setTestResults((prev) => prev + `\n\nERROR testing ${endpoint}: ${error.message}`)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const runAllTests = async () => {
+    setTestResults("Starting API tests with new youtube-simple endpoint...\n")
+
+    // Test 1: Health check
+    await testAPI("/api/youtube-simple")
+
+    // Test 2: Video info
+    await testAPI("/api/youtube-simple", "POST", { videoId, action: "video-info" })
+
+    // Test 3: Transcribe
+    await testAPI("/api/youtube-simple", "POST", { videoId, action: "transcribe", language: "en" })
+
+    // Test 4: Try different video
+    await testAPI("/api/youtube-simple", "POST", { videoId: "jNQXAC9IVRw", action: "video-info" })
+    await testAPI("/api/youtube-simple", "POST", { videoId: "jNQXAC9IVRw", action: "transcribe", language: "en" })
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            🧪 API Test Page
-            <Badge variant="outline">Pages Router</Badge>
-          </CardTitle>
+          <CardTitle>🧪 API Testing Dashboard - New youtube-simple Endpoint</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Test Video ID:</label>
-              <Input value={videoId} onChange={(e) => setVideoId(e.target.value)} placeholder="YouTube Video ID" />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Button onClick={runTests} disabled={isLoading} className="w-full">
-                {isLoading ? "Testing..." : "🚀 Run All Tests"}
-              </Button>
-
-              <Button onClick={() => setResults("")} variant="outline" className="w-full">
-                🗑️ Clear Results
-              </Button>
-            </div>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Test Video ID:</label>
+            <Input value={videoId} onChange={(e) => setVideoId(e.target.value)} placeholder="YouTube Video ID" />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <Button size="sm" variant="outline" onClick={() => testAPI("/api/health")} disabled={isLoading}>
-              Health
+          <div className="flex gap-2">
+            <Button onClick={runAllTests} disabled={isLoading}>
+              {isLoading ? "Testing..." : "🚀 Run All Tests"}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testAPI("/api/video-info", "POST", { videoId })}
-              disabled={isLoading}
-            >
-              Video Info
+            <Button variant="outline" onClick={() => setTestResults("")}>
+              Clear Results
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testAPI("/api/transcribe", "POST", { videoId, language: "en" })}
-              disabled={isLoading}
-            >
-              Transcribe
+            <Button variant="outline" onClick={() => window.open("/api/youtube-simple", "_blank")}>
+              Test Health Direct
             </Button>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">Test Results:</label>
             <Textarea
-              value={results}
+              value={testResults}
               readOnly
               className="min-h-96 font-mono text-xs"
               placeholder="Test results will appear here..."
