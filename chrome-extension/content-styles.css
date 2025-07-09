@@ -1,0 +1,65 @@
+/* YouTube Transcriber Content Styles */
+.yt-transcriber-container {
+  font-family: "YouTube Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.yt-transcriber-container * {
+  box-sizing: border-box !important;
+}
+
+/* Ensure our elements don't interfere with YouTube's styles */
+.yt-transcriber-container button,
+.yt-transcriber-container textarea,
+.yt-transcriber-container div {
+  all: unset;
+}
+
+.yt-transcriber-container button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+.yt-transcriber-container textarea {
+  display: block !important;
+  width: 100% !important;
+  resize: vertical !important;
+}
+
+/* Animation for smooth interactions */
+@keyframes transcriber-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.yt-transcriber-container {
+  animation: transcriber-fade-in 0.3s ease-out;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .yt-transcriber-container {
+    margin: 12px 0 !important;
+  }
+
+  .yt-transcriber-container > div {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+
+  .yt-transcriber-container h3 {
+    font-size: 16px !important;
+  }
+
+  .yt-transcriber-container button {
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+  }
+}

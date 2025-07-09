@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YouTube AI Transcriber",
   "version": "1.0.0",
-  "description": "AI-powered YouTube video transcription with translation and summarization",
+  "description": "Extract subtitles and generate AI transcriptions from YouTube videos",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -12,8 +12,8 @@
     "default_popup": "popup.html",
     "default_icon": "icons/icon16.png"
   },
-  "permissions": ["activeTab", "scripting", "storage", "downloads"],
-  "host_permissions": ["https://www.youtube.com/*", "https://your-vercel-app.vercel.app/*"],
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://www.youtube.com/*", "https://v0-chrome-extension-guide-livid.vercel.app/*"],
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],

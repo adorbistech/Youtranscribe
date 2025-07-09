@@ -12,176 +12,237 @@
         }
         
         body {
-            width: 380px;
+            width: 400px;
             min-height: 500px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #ffffff;
+            color: #1f2937;
         }
         
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 16px;
+            padding: 20px;
             text-align: center;
         }
         
         .header h1 {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         .header p {
-            font-size: 12px;
+            font-size: 13px;
             opacity: 0.9;
         }
         
         .content {
-            padding: 16px;
+            padding: 20px;
         }
         
         .video-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
             border-left: 4px solid #667eea;
         }
         
         .video-title {
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f2937;
+            line-height: 1.4;
+        }
+        
+        .video-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             margin-bottom: 4px;
-            color: #333;
         }
         
         .video-id {
-            font-size: 12px;
-            color: #666;
-            font-family: monospace;
+            font-size: 11px;
+            color: #6b7280;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .caption-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .caption-status.available {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .caption-status.unavailable {
+            background: #fef3c7;
+            color: #92400e;
         }
         
         .controls {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
         
         .control-group {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         
         .control-group label {
             display: block;
-            font-size: 12px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            color: #333;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #374151;
         }
         
         select, button {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 14px;
+            transition: all 0.2s;
         }
         
         select {
             background: white;
+            color: #1f2937;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
         .btn-primary {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         .btn-primary:hover:not(:disabled) {
-            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
         
         .btn-primary:disabled {
-            background: #a0aec0;
+            background: #9ca3af;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .btn-secondary {
-            background: #f7fafc;
-            color: #4a5568;
-            border: 1px solid #e2e8f0;
+            background: #f9fafb;
+            color: #374151;
+            border: 2px solid #e5e7eb;
             font-weight: 500;
             cursor: pointer;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         
         .btn-secondary:hover {
-            background: #edf2f7;
+            background: #f3f4f6;
+            border-color: #d1d5db;
         }
         
         .result-area {
-            margin-top: 16px;
+            margin-top: 20px;
         }
         
         .result-textarea {
             width: 100%;
-            min-height: 120px;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            min-height: 140px;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
             resize: vertical;
             font-family: inherit;
+            background: #fafafa;
+        }
+        
+        .result-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
         }
         
         .action-buttons {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
-            margin-top: 8px;
+            margin-top: 12px;
         }
         
         .action-buttons button {
-            flex: 1;
-            padding: 6px 12px;
+            padding: 8px 12px;
             font-size: 12px;
         }
         
         .status {
-            padding: 8px 12px;
-            border-radius: 6px;
+            padding: 12px 16px;
+            border-radius: 8px;
             font-size: 13px;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .status.error {
-            background: #fed7d7;
-            color: #c53030;
-            border: 1px solid #feb2b2;
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
         }
         
         .status.success {
-            background: #c6f6d5;
-            color: #2f855a;
-            border: 1px solid #9ae6b4;
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
         }
         
         .status.loading {
-            background: #bee3f8;
-            color: #2b6cb0;
-            border: 1px solid #90cdf4;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
         }
         
         .loading-spinner {
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #90cdf4;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #bfdbfe;
             border-radius: 50%;
-            border-top-color: #2b6cb0;
+            border-top-color: #2563eb;
             animation: spin 1s ease-in-out infinite;
-            margin-right: 8px;
         }
         
         @keyframes spin {
@@ -190,28 +251,32 @@
         
         .not-youtube {
             text-align: center;
-            padding: 40px 20px;
-            color: #666;
+            padding: 60px 20px;
+            color: #6b7280;
         }
         
-        .not-youtube svg {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 16px;
+        .not-youtube-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
             opacity: 0.5;
+            fill: currentColor;
         }
         
         .enhancement-section {
-            border-top: 1px solid #e2e8f0;
-            padding-top: 16px;
-            margin-top: 16px;
+            border-top: 2px solid #f3f4f6;
+            padding-top: 20px;
+            margin-top: 20px;
         }
         
         .enhancement-title {
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             margin-bottom: 12px;
-            color: #333;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
         .enhancement-buttons {
@@ -223,17 +288,67 @@
         .hidden {
             display: none;
         }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #f3f4f6;
+            color: #374151;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .badge.primary {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .footer {
+            padding: 16px 20px;
+            border-top: 1px solid #f3f4f6;
+            text-align: center;
+        }
+        
+        .footer button {
+            background: transparent;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+            padding: 8px 16px;
+        }
+        
+        .footer button:hover {
+            background: #f9fafb;
+            color: #374151;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🎥 YouTube AI Transcriber</h1>
-        <p>AI-powered video transcription & enhancement</p>
+        <h1>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            YouTube Transcriber
+        </h1>
+        <p>Extract captions and generate AI transcriptions</p>
     </div>
     
     <div class="content">
         <div id="not-youtube" class="not-youtube hidden">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+            <svg class="not-youtube-icon" viewBox="0 0 24 24">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
             <h3>Navigate to YouTube</h3>
@@ -243,7 +358,13 @@
         <div id="main-content">
             <div id="video-info" class="video-info hidden">
                 <div class="video-title" id="video-title">Loading video info...</div>
-                <div class="video-id" id="video-id"></div>
+                <div class="video-meta">
+                    <div class="video-id" id="video-id"></div>
+                    <div class="caption-status" id="caption-status">
+                        <span id="caption-icon">⏳</span>
+                        <span id="caption-text">Checking...</span>
+                    </div>
+                </div>
             </div>
             
             <div id="status-area"></div>
@@ -252,9 +373,9 @@
                 <div class="control-group">
                     <label for="service-select">Transcription Service:</label>
                     <select id="service-select">
-                        <option value="auto">Auto (Try subtitles first)</option>
-                        <option value="whisper">OpenAI Whisper</option>
-                        <option value="google">Google Speech-to-Text</option>
+                        <option value="auto">Auto (Extract Captions)</option>
+                        <option value="whisper" disabled>OpenAI Whisper (Coming Soon)</option>
+                        <option value="google" disabled>Google Speech (Coming Soon)</option>
                     </select>
                 </div>
                 
@@ -275,20 +396,46 @@
                 </div>
                 
                 <button id="transcribe-btn" class="btn-primary">
-                    🎯 Start Transcription
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    Extract Captions
                 </button>
             </div>
             
             <div id="result-area" class="result-area hidden">
+                <div class="stats">
+                    <div>
+                        <span class="badge primary" id="service-badge">youtube-cc</span>
+                        <span class="badge" id="language-badge">en</span>
+                    </div>
+                    <span id="char-count">0 characters</span>
+                </div>
+                
                 <textarea id="result-text" class="result-textarea" readonly placeholder="Transcription will appear here..."></textarea>
                 
                 <div class="action-buttons">
-                    <button id="copy-btn" class="btn-secondary">📋 Copy</button>
-                    <button id="download-btn" class="btn-secondary">💾 Download</button>
+                    <button id="copy-btn" class="btn-secondary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        Copy
+                    </button>
+                    <button id="download-btn" class="btn-secondary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        </svg>
+                        Download
+                    </button>
                 </div>
                 
                 <div class="enhancement-section">
-                    <div class="enhancement-title">✨ AI Enhancements:</div>
+                    <div class="enhancement-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        AI Enhancements
+                    </div>
                     <div class="enhancement-buttons">
                         <button id="summarize-btn" class="btn-secondary">📝 Summarize</button>
                         <button id="keypoints-btn" class="btn-secondary">🎯 Key Points</button>
@@ -298,6 +445,10 @@
                 </div>
             </div>
         </div>
+    </div>
+    
+    <div class="footer">
+        <button id="open-web-btn">🌐 Open Web App</button>
     </div>
     
     <script src="popup.js"></script>

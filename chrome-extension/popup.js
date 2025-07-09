@@ -5,6 +5,7 @@ class YouTubeTranscriberPopup {
     this.videoId = null
     this.videoTitle = null
     this.apiBase = "https://v0-chrome-extension-guide-livid.vercel.app"
+    this.currentTranscript = null
 
     this.init()
   }
@@ -28,6 +29,7 @@ class YouTubeTranscriberPopup {
     document.getElementById("keypoints-btn").addEventListener("click", () => this.enhanceText("extract-key-points"))
     document.getElementById("translate-btn").addEventListener("click", () => this.enhanceText("translate"))
     document.getElementById("dashboard-btn").addEventListener("click", () => this.openDashboard())
+    document.getElementById("open-web-btn").addEventListener("click", () => this.openWebApp())
   }
 
   checkYouTubePage() {
@@ -60,35 +62,52 @@ class YouTubeTranscriberPopup {
 
   async loadVideoInfo() {
     try {
-      // Try to get video title from the page
-      const [result] = await window.chrome.scripting.executeScript({
-        target: { tabId: this.currentTab.id },
-        function: () => {
-          const titleElement = document.querySelector(
-            "h1.ytd-video-primary-info-renderer, h1.title, .ytd-video-primary-info-renderer h1",
-          )
-          return titleElement ? titleElement.textContent.trim() : "YouTube Video"
-        },
+      document.getElementById("video-info").classList.remove("hidden")
+      document.getElementById("video-title").textContent = "Loading video information..."
+      document.getElementById("video-id").textContent = `Video ID: ${this.videoId}`
+
+      // Get video info from our API
+      const response = await fetch(`${this.apiBase}/api/video-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: this.videoId }),
       })
 
-      this.videoTitle = result.result || "YouTube Video"
+      if (response.ok) {
+        const videoInfo = await response.json()
+        this.videoTitle = videoInfo.title
+        document.getElementById("video-title").textContent = videoInfo.title
 
-      document.getElementById("video-title").textContent = this.videoTitle
-      document.getElementById("video-id").textContent = `Video ID: ${this.videoId}`
-      document.getElementById("video-info").classList.remove("hidden")
+        // Update caption status
+        const captionStatus = document.getElementById("caption-status")
+        const captionIcon = document.getElementById("caption-icon")
+        const captionText = document.getElementById("caption-text")
+
+        if (videoInfo.hasCaptions) {
+          captionStatus.className = "caption-status available"
+          captionIcon.textContent = "✅"
+          captionText.textContent = "Captions available"
+        } else {
+          captionStatus.className = "caption-status unavailable"
+          captionIcon.textContent = "⚠️"
+          captionText.textContent = "No captions detected"
+        }
+      } else {
+        throw new Error("Failed to get video info")
+      }
     } catch (error) {
       console.error("Error loading video info:", error)
       this.videoTitle = "YouTube Video"
       document.getElementById("video-title").textContent = this.videoTitle
-      document.getElementById("video-id").textContent = `Video ID: ${this.videoId}`
-      document.getElementById("video-info").classList.remove("hidden")
+      document.getElementById("caption-status").classList.add("hidden")
     }
   }
 
   showStatus(message, type = "loading") {
     const statusArea = document.getElementById("status-area")
     const spinner = type === "loading" ? '<div class="loading-spinner"></div>' : ""
-    statusArea.innerHTML = `<div class="status ${type}">${spinner}${message}</div>`
+    const icon = type === "success" ? "✅" : type === "error" ? "❌" : ""
+    statusArea.innerHTML = `<div class="status ${type}">${spinner}${icon}${message}</div>`
   }
 
   clearStatus() {
@@ -101,24 +120,13 @@ class YouTubeTranscriberPopup {
     const language = document.getElementById("language-select").value
 
     transcribeBtn.disabled = true
-    transcribeBtn.textContent = "🔄 Processing..."
-    this.showStatus("Starting transcription...", "loading")
+    transcribeBtn.innerHTML = `
+      <div class="loading-spinner"></div>
+      Extracting Captions...
+    `
+    this.showStatus("Extracting captions from YouTube...", "loading")
 
     try {
-      // First try to extract existing subtitles
-      if (service === "auto") {
-        this.showStatus("Checking for existing subtitles...", "loading")
-        const subtitles = await this.extractExistingSubtitles()
-
-        if (subtitles) {
-          this.displayResult(subtitles, "youtube-cc")
-          this.showStatus("Transcription completed using existing subtitles!", "success")
-          return
-        }
-      }
-
-      // Fall back to API transcription
-      this.showStatus("Generating transcription with AI...", "loading")
       const response = await fetch(`${this.apiBase}/api/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,80 +139,67 @@ class YouTubeTranscriberPopup {
 
       const data = await response.json()
 
-      if (data.error) {
-        throw new Error(data.error)
+      if (!response.ok) {
+        throw new Error(data.error || "Transcription failed")
       }
 
-      this.displayResult(data.transcript, data.service)
-      this.showStatus("Transcription completed successfully!", "success")
+      this.displayResult(data.transcript, data.service, data.language)
+      this.showStatus("Captions extracted successfully!", "success")
 
-      // Save to history
-      this.saveToHistory(data)
+      // Clear status after 3 seconds
+      setTimeout(() => this.clearStatus(), 3000)
     } catch (error) {
       console.error("Transcription error:", error)
       this.showStatus(`Error: ${error.message}`, "error")
     } finally {
       transcribeBtn.disabled = false
-      transcribeBtn.textContent = "🎯 Start Transcription"
+      transcribeBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        Extract Captions
+      `
     }
   }
 
-  async extractExistingSubtitles() {
-    try {
-      const [result] = await window.chrome.scripting.executeScript({
-        target: { tabId: this.currentTab.id },
-        function: () => {
-          return new Promise((resolve) => {
-            // Try to find and enable captions
-            const ccButton = document.querySelector(".ytp-subtitles-button")
-            if (ccButton && ccButton.getAttribute("aria-pressed") === "false") {
-              ccButton.click()
-            }
-
-            // Wait for captions to appear
-            setTimeout(() => {
-              const captions = document.querySelectorAll(".captions-text span, .ytp-caption-segment")
-              if (captions.length > 0) {
-                const text = Array.from(captions)
-                  .map((el) => el.textContent)
-                  .filter(Boolean)
-                  .join(" ")
-                resolve(text)
-              } else {
-                resolve(null)
-              }
-            }, 2000)
-          })
-        },
-      })
-
-      return result.result
-    } catch (error) {
-      console.error("Error extracting subtitles:", error)
-      return null
-    }
-  }
-
-  displayResult(transcript, service) {
+  displayResult(transcript, service, language) {
     document.getElementById("result-text").value = transcript
     document.getElementById("result-area").classList.remove("hidden")
+
+    // Update badges and stats
+    document.getElementById("service-badge").textContent = service
+    document.getElementById("language-badge").textContent = language
+    document.getElementById("char-count").textContent = `${transcript.length} characters`
 
     // Store current transcript for enhancements
     this.currentTranscript = transcript
     this.currentService = service
+    this.currentLanguage = language
   }
 
-  copyToClipboard() {
+  async copyToClipboard() {
     const textarea = document.getElementById("result-text")
-    textarea.select()
-    document.execCommand("copy")
-
     const copyBtn = document.getElementById("copy-btn")
-    const originalText = copyBtn.textContent
-    copyBtn.textContent = "✅ Copied!"
-    setTimeout(() => {
-      copyBtn.textContent = originalText
-    }, 1000)
+
+    try {
+      await navigator.clipboard.writeText(textarea.value)
+
+      const originalHTML = copyBtn.innerHTML
+      copyBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        </svg>
+        Copied!
+      `
+      copyBtn.style.color = "#16a34a"
+
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHTML
+        copyBtn.style.color = ""
+      }, 2000)
+    } catch (error) {
+      console.error("Failed to copy:", error)
+    }
   }
 
   downloadTranscript() {
@@ -224,8 +219,8 @@ class YouTubeTranscriberPopup {
     if (!this.currentTranscript) return
 
     const button = document.getElementById(`${action.split("-")[0]}-btn`)
-    const originalText = button.textContent
-    button.textContent = "🔄 Processing..."
+    const originalHTML = button.innerHTML
+    button.innerHTML = `<div class="loading-spinner"></div> Processing...`
     button.disabled = true
 
     this.showStatus(`Enhancing with AI (${action})...`, "loading")
@@ -249,13 +244,16 @@ class YouTubeTranscriberPopup {
       }
 
       document.getElementById("result-text").value = data.result
+      document.getElementById("char-count").textContent = `${data.result.length} characters`
       this.currentTranscript = data.result
       this.showStatus(`Enhancement completed (${action})!`, "success")
+
+      setTimeout(() => this.clearStatus(), 3000)
     } catch (error) {
       console.error("Enhancement error:", error)
       this.showStatus(`Enhancement failed: ${error.message}`, "error")
     } finally {
-      button.textContent = originalText
+      button.innerHTML = originalHTML
       button.disabled = false
     }
   }
@@ -264,22 +262,8 @@ class YouTubeTranscriberPopup {
     window.chrome.tabs.create({ url: `${this.apiBase}/dashboard` })
   }
 
-  async saveToHistory(transcriptionData) {
-    try {
-      await fetch(`${this.apiBase}/api/history`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoId: this.videoId,
-          title: this.videoTitle,
-          transcript: transcriptionData.transcript,
-          service: transcriptionData.service,
-          language: transcriptionData.language,
-        }),
-      })
-    } catch (error) {
-      console.error("Failed to save to history:", error)
-    }
+  openWebApp() {
+    window.chrome.tabs.create({ url: `${this.apiBase}/transcribe` })
   }
 }
 
