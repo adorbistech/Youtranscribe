@@ -1,158 +1,239 @@
 import { NextResponse } from "next/server"
-import OpenAI from "openai"
-
-// Initialize OpenRouter client
-const openrouter = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://v0-chrome-extension-guide-livid.vercel.app",
-    "X-Title": "YouTube AI Transcriber",
-  },
-})
 
 interface TranscriptionRequest {
   videoId: string
   language?: string
-  service?: "whisper" | "google" | "azure"
-}
-
-interface TranscriptionResponse {
-  transcript: string
-  confidence?: number
-  language: string
-  duration?: number
-  service: string
-  timestamp: string
+  service?: "whisper" | "google" | "auto"
 }
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as TranscriptionRequest
-    const { videoId, language = "en", service = "whisper" } = body
+    const { videoId, language = "en", service = "auto" } = body
 
     if (!videoId) {
       return NextResponse.json({ error: "Video ID is required" }, { status: 400 })
     }
 
-    // First try to get existing subtitles
-    const existingSubtitles = await getExistingSubtitles(videoId, language)
-    if (existingSubtitles) {
-      await saveTranscription(videoId, existingSubtitles, "youtube-cc", language)
+    // Try to get existing subtitles first
+    const subtitles = await getYouTubeSubtitles(videoId, language)
+
+    if (subtitles) {
+      // Save to history
+      await saveTranscription(videoId, subtitles, "youtube-cc", language)
+
       return NextResponse.json({
-        transcript: existingSubtitles,
+        transcript: subtitles,
         language,
         service: "youtube-cc",
         timestamp: new Date().toISOString(),
+        success: true,
       })
     }
 
-    // Fall back to AI transcription (simulated for demo)
-    const transcript = await simulateAITranscription(videoId, service, language)
-    await saveTranscription(videoId, transcript, service, language)
-
-    return NextResponse.json({
-      transcript,
-      language,
-      service,
-      timestamp: new Date().toISOString(),
-    })
+    // If no subtitles found, return appropriate message
+    return NextResponse.json(
+      {
+        error:
+          "No subtitles found for this video. This video either doesn't have captions or they're not publicly available.",
+        suggestion: "Try a different video with captions, or the creator needs to add subtitles to their video.",
+      },
+      { status: 404 },
+    )
   } catch (error) {
     console.error("Transcription error:", error)
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Transcription failed",
+        error: error instanceof Error ? error.message : "Failed to process video",
       },
       { status: 500 },
     )
   }
 }
 
-async function getExistingSubtitles(videoId: string, language: string): Promise<string | null> {
+async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): Promise<string | null> {
   try {
-    // Try to fetch YouTube page and extract subtitle information
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    // Method 1: Try to get subtitles using YouTube's transcript API approach
+    const transcriptUrl = `https://www.youtube.com/api/timedtext?lang=${preferredLanguage}&v=${videoId}`
+
+    try {
+      const response = await fetch(transcriptUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        },
+      })
+
+      if (response.ok) {
+        const xmlText = await response.text()
+        if (xmlText && xmlText.includes("<text")) {
+          return parseSubtitleXML(xmlText)
+        }
+      }
+    } catch (e) {
+      console.log("Direct transcript API failed, trying alternative method")
+    }
+
+    // Method 2: Try to extract from video page
+    const pageUrl = `https://www.youtube.com/watch?v=${videoId}`
+    const pageResponse = await fetch(pageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
       },
     })
 
-    if (!response.ok) {
-      return null
+    if (!pageResponse.ok) {
+      throw new Error(`Failed to fetch video page: ${pageResponse.status}`)
     }
 
-    const html = await response.text()
+    const html = await pageResponse.text()
 
-    // Look for caption tracks in the page HTML
-    const captionRegex = /"captionTracks":(\[.*?\])/
+    // Look for caption tracks in the page
+    const captionRegex = /"captionTracks":\s*(\[.*?\])/
     const match = html.match(captionRegex)
 
     if (match) {
       try {
         const captionTracks = JSON.parse(match[1])
-        const track =
-          captionTracks.find(
-            (t: any) => t.languageCode === language || t.languageCode.startsWith(language.split("-")[0]),
-          ) || captionTracks[0]
 
-        if (track && track.baseUrl) {
-          const subtitleResponse = await fetch(track.baseUrl)
-          const xmlData = await subtitleResponse.text()
-          return parseSubtitleXML(xmlData)
+        // Find the best matching caption track
+        let selectedTrack = captionTracks.find((track: any) => track.languageCode === preferredLanguage)
+
+        // Fallback to English if preferred language not found
+        if (!selectedTrack) {
+          selectedTrack = captionTracks.find(
+            (track: any) => track.languageCode === "en" || track.languageCode.startsWith("en"),
+          )
+        }
+
+        // Use first available track if no English found
+        if (!selectedTrack && captionTracks.length > 0) {
+          selectedTrack = captionTracks[0]
+        }
+
+        if (selectedTrack && selectedTrack.baseUrl) {
+          const subtitleResponse = await fetch(selectedTrack.baseUrl)
+          if (subtitleResponse.ok) {
+            const xmlData = await subtitleResponse.text()
+            return parseSubtitleXML(xmlData)
+          }
         }
       } catch (parseError) {
         console.error("Error parsing caption tracks:", parseError)
       }
     }
 
+    // Method 3: Try common subtitle URLs
+    const commonLanguages = [preferredLanguage, "en", "en-US", "en-GB"]
+
+    for (const lang of commonLanguages) {
+      try {
+        const urls = [
+          `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}`,
+          `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=srv3`,
+          `https://video.google.com/timedtext?lang=${lang}&v=${videoId}`,
+        ]
+
+        for (const url of urls) {
+          try {
+            const response = await fetch(url)
+            if (response.ok) {
+              const text = await response.text()
+              if (text && (text.includes("<text") || text.includes("<transcript"))) {
+                return parseSubtitleXML(text)
+              }
+            }
+          } catch (e) {
+            continue
+          }
+        }
+      } catch (e) {
+        continue
+      }
+    }
+
     return null
   } catch (error) {
-    console.error("Error getting existing subtitles:", error)
+    console.error("Error getting YouTube subtitles:", error)
     return null
   }
 }
 
 function parseSubtitleXML(xml: string): string {
-  // Parse YouTube's subtitle XML format
-  const textRegex = /<text[^>]*>(.*?)<\/text>/g
-  const matches = []
-  let match
+  try {
+    // Handle different XML formats
+    const patterns = [
+      /<text[^>]*>(.*?)<\/text>/g,
+      /<transcript><text[^>]*>(.*?)<\/text><\/transcript>/g,
+      /<p[^>]*>(.*?)<\/p>/g,
+    ]
 
-  while ((match = textRegex.exec(xml)) !== null) {
-    const text = match[1]
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/<[^>]*>/g, "") // Remove any remaining HTML tags
-    matches.push(text.trim())
+    let allMatches: string[] = []
+
+    for (const pattern of patterns) {
+      const matches = []
+      let match
+
+      while ((match = pattern.exec(xml)) !== null) {
+        const text = match[1]
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&apos;/g, "'")
+          .replace(/<[^>]*>/g, "") // Remove HTML tags
+          .replace(/\s+/g, " ") // Normalize whitespace
+          .trim()
+
+        if (text && text.length > 0) {
+          matches.push(text)
+        }
+      }
+
+      if (matches.length > 0) {
+        allMatches = matches
+        break
+      }
+    }
+
+    if (allMatches.length === 0) {
+      // Try simple text extraction
+      const cleanXml = xml
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim()
+
+      if (cleanXml && cleanXml.length > 10) {
+        return cleanXml
+      }
+    }
+
+    return allMatches.join(" ").trim()
+  } catch (error) {
+    console.error("Error parsing subtitle XML:", error)
+    return ""
   }
-
-  return matches.filter(Boolean).join(" ")
-}
-
-async function simulateAITranscription(videoId: string, service: string, language: string): Promise<string> {
-  // In a real implementation, this would:
-  // 1. Download the audio from YouTube using ytdl-core or similar
-  // 2. Send it to the chosen transcription service
-  // 3. Return the transcribed text
-
-  // For demo purposes, we'll simulate different responses based on the service
-  const demoTranscripts = {
-    whisper: `This is a simulated OpenAI Whisper transcription for video ${videoId}. In a real implementation, this would contain the actual transcribed audio content from the YouTube video. The transcription would be highly accurate and include proper punctuation and formatting.`,
-    google: `This is a simulated Google Speech-to-Text transcription for video ${videoId}. The actual implementation would process the video's audio track and return the spoken content as text with high accuracy.`,
-    azure: `This is a simulated Azure Speech Services transcription for video ${videoId}. The real service would provide detailed transcription with speaker identification and confidence scores.`,
-  }
-
-  // Simulate processing delay
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  return demoTranscripts[service as keyof typeof demoTranscripts] || demoTranscripts.whisper
 }
 
 async function saveTranscription(videoId: string, transcript: string, service: string, language: string) {
-  // In a real implementation, this would save to a database
-  console.log("Saving transcription:", { videoId, service, language, length: transcript.length })
+  // This would save to a database in a real implementation
+  console.log("Saving transcription:", {
+    videoId,
+    service,
+    language,
+    length: transcript.length,
+    preview: transcript.substring(0, 100) + "...",
+  })
 }

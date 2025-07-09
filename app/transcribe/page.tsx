@@ -7,8 +7,28 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Copy, Download, Youtube, Sparkles, Globe, FileText, ArrowLeft } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Loader2,
+  Copy,
+  Download,
+  Youtube,
+  Sparkles,
+  Globe,
+  FileText,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Info,
+} from "lucide-react"
 import Link from "next/link"
+
+interface VideoInfo {
+  title: string
+  videoId: string
+  hasCaptions: boolean
+  url: string
+}
 
 interface TranscriptionResult {
   transcript: string
@@ -23,10 +43,11 @@ export default function TranscribePage() {
   const [selectedService, setSelectedService] = useState("auto")
   const [selectedLanguage, setSelectedLanguage] = useState("en")
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false)
   const [result, setResult] = useState<TranscriptionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [availableModels, setAvailableModels] = useState<any[]>([])
-  const [selectedModel, setSelectedModel] = useState("deepseek/deepseek-r1-distill-qwen-14b:free")
+  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
+  const [copySuccess, setCopySuccess] = useState(false)
 
   const extractVideoId = (url: string): string | null => {
     const patterns = [
@@ -39,6 +60,33 @@ export default function TranscribePage() {
       if (match) return match[1]
     }
     return null
+  }
+
+  const handleUrlChange = async (url: string) => {
+    setYoutubeUrl(url)
+    setError(null)
+    setVideoInfo(null)
+
+    const videoId = extractVideoId(url)
+    if (videoId && url.trim().length > 10) {
+      setIsLoadingInfo(true)
+      try {
+        const response = await fetch("/api/video-info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoId }),
+        })
+
+        if (response.ok) {
+          const info = await response.json()
+          setVideoInfo(info)
+        }
+      } catch (error) {
+        console.error("Failed to get video info:", error)
+      } finally {
+        setIsLoadingInfo(false)
+      }
+    }
   }
 
   const handleTranscribe = async () => {
@@ -70,8 +118,8 @@ export default function TranscribePage() {
 
       const data = await response.json()
 
-      if (data.error) {
-        throw new Error(data.error)
+      if (!response.ok) {
+        throw new Error(data.error || "Transcription failed")
       }
 
       setResult({
@@ -79,7 +127,7 @@ export default function TranscribePage() {
         service: data.service,
         language: data.language,
         videoId,
-        videoTitle: `YouTube Video ${videoId}`,
+        videoTitle: videoInfo?.title || `YouTube Video ${videoId}`,
       })
 
       // Save to history
@@ -88,12 +136,12 @@ export default function TranscribePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           videoId,
-          title: `YouTube Video ${videoId}`,
+          title: videoInfo?.title || `YouTube Video ${videoId}`,
           transcript: data.transcript,
           service: data.service,
           language: data.language,
         }),
-      })
+      }).catch(console.error)
     } catch (error) {
       console.error("Transcription error:", error)
       setError(error instanceof Error ? error.message : "Transcription failed")
@@ -102,9 +150,15 @@ export default function TranscribePage() {
     }
   }
 
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (result) {
-      navigator.clipboard.writeText(result.transcript)
+      try {
+        await navigator.clipboard.writeText(result.transcript)
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      } catch (error) {
+        console.error("Failed to copy:", error)
+      }
     }
   }
 
@@ -132,7 +186,7 @@ export default function TranscribePage() {
           transcript: result.transcript,
           action,
           targetLanguage,
-          model: selectedModel,
+          model: "deepseek/deepseek-r1-distill-qwen-14b:free",
         }),
       })
 
@@ -164,7 +218,7 @@ export default function TranscribePage() {
             <Youtube className="w-8 h-8 text-red-600" />
             <h1 className="text-3xl font-bold text-gray-900">YouTube Transcriber</h1>
           </div>
-          <p className="text-gray-600">Paste any YouTube URL to extract subtitles or generate AI transcriptions</p>
+          <p className="text-gray-600">Extract subtitles and captions from any YouTube video</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -182,13 +236,45 @@ export default function TranscribePage() {
                 <Input
                   placeholder="https://www.youtube.com/watch?v=..."
                   value={youtubeUrl}
-                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  onChange={(e) => handleUrlChange(e.target.value)}
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Supports youtube.com/watch, youtu.be, and youtube.com/embed URLs
                 </p>
               </div>
+
+              {/* Video Info */}
+              {isLoadingInfo && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading video information...
+                </div>
+              )}
+
+              {videoInfo && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-1">
+                      <div className="font-medium">{videoInfo.title}</div>
+                      <div className="flex items-center gap-2 text-sm">
+                        {videoInfo.hasCaptions ? (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CheckCircle className="w-3 h-3" />
+                            Captions available
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-orange-600">
+                            <AlertCircle className="w-3 h-3" />
+                            No captions detected
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -198,9 +284,13 @@ export default function TranscribePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="auto">Auto (CC first, then AI)</SelectItem>
-                      <SelectItem value="whisper">OpenAI Whisper</SelectItem>
-                      <SelectItem value="google">Google Speech</SelectItem>
+                      <SelectItem value="auto">Auto (Extract Captions)</SelectItem>
+                      <SelectItem value="whisper" disabled>
+                        OpenAI Whisper (Coming Soon)
+                      </SelectItem>
+                      <SelectItem value="google" disabled>
+                        Google Speech (Coming Soon)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -227,22 +317,25 @@ export default function TranscribePage() {
                 </div>
               </div>
 
-              <Button onClick={handleTranscribe} disabled={isLoading} className="w-full">
+              <Button onClick={handleTranscribe} disabled={isLoading || !youtubeUrl.trim()} className="w-full">
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processing...
+                    Extracting Captions...
                   </>
                 ) : (
                   <>
                     <Youtube className="w-4 h-4 mr-2" />
-                    Transcribe Video
+                    Extract Captions
                   </>
                 )}
               </Button>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">{error}</div>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
@@ -261,6 +354,7 @@ export default function TranscribePage() {
                   <div className="flex items-center gap-2 mb-3">
                     <Badge variant="secondary">{result.service}</Badge>
                     <Badge variant="outline">{result.language}</Badge>
+                    <span className="text-sm text-gray-500">{result.transcript.length} characters</span>
                   </div>
 
                   <Textarea
@@ -271,9 +365,23 @@ export default function TranscribePage() {
                   />
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={copyToClipboard}>
-                      <Copy className="w-4 h-4 mr-1" />
-                      Copy
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={copyToClipboard}
+                      className={copySuccess ? "text-green-600" : ""}
+                    >
+                      {copySuccess ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 mr-1" />
+                          Copy
+                        </>
+                      )}
                     </Button>
                     <Button size="sm" variant="outline" onClick={downloadTranscript}>
                       <Download className="w-4 h-4 mr-1" />
@@ -327,45 +435,46 @@ export default function TranscribePage() {
               ) : (
                 <div className="text-center text-gray-500 py-12">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Enter a YouTube URL and click "Transcribe Video" to get started</p>
+                  <p>Enter a YouTube URL and click "Extract Captions" to get started</p>
+                  <p className="text-sm mt-2">Works best with videos that have closed captions</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* How it works */}
+        {/* Tips */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>How It Works</CardTitle>
+            <CardTitle>💡 Tips for Best Results</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <span className="text-blue-600 font-bold">1</span>
-                </div>
-                <h3 className="font-medium mb-2">Extract URL</h3>
+              <div>
+                <h3 className="font-medium mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  Videos with Captions
+                </h3>
                 <p className="text-sm text-gray-600">
-                  We extract the video ID from your YouTube URL and check for existing subtitles
+                  Works best with videos that have closed captions (CC) enabled by the creator
                 </p>
               </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <span className="text-green-600 font-bold">2</span>
-                </div>
-                <h3 className="font-medium mb-2">Smart Processing</h3>
+              <div>
+                <h3 className="font-medium mb-2 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                  Multiple Languages
+                </h3>
                 <p className="text-sm text-gray-600">
-                  First try existing captions, then fall back to AI transcription if needed
+                  Select your preferred language, or we'll try to find English captions as fallback
                 </p>
               </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <span className="text-purple-600 font-bold">3</span>
-                </div>
-                <h3 className="font-medium mb-2">AI Enhancement</h3>
+              <div>
+                <h3 className="font-medium mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  AI Enhancement
+                </h3>
                 <p className="text-sm text-gray-600">
-                  Use AI to summarize, translate, or extract key insights from the transcript
+                  Use AI features to summarize, translate, or extract key points from transcripts
                 </p>
               </div>
             </div>
