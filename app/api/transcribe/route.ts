@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 interface TranscriptionRequest {
   videoId: string
@@ -6,10 +6,12 @@ interface TranscriptionRequest {
   service?: "whisper" | "google" | "auto"
 }
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = (await req.json()) as TranscriptionRequest
+    const body = (await request.json()) as TranscriptionRequest
     const { videoId, language = "en", service = "auto" } = body
+
+    console.log("Transcription request:", { videoId, language, service })
 
     if (!videoId) {
       return NextResponse.json({ error: "Video ID is required" }, { status: 400 })
@@ -18,7 +20,9 @@ export async function POST(req: Request) {
     // Try to get existing subtitles first
     const subtitles = await getYouTubeSubtitles(videoId, language)
 
-    if (subtitles) {
+    if (subtitles && subtitles.length > 50) {
+      console.log("Subtitles found:", subtitles.substring(0, 100) + "...")
+
       // Save to history
       await saveTranscription(videoId, subtitles, "youtube-cc", language)
 
@@ -31,12 +35,15 @@ export async function POST(req: Request) {
       })
     }
 
+    console.log("No subtitles found for video:", videoId)
+
     // If no subtitles found, return appropriate message
     return NextResponse.json(
       {
         error:
           "No subtitles found for this video. This video either doesn't have captions or they're not publicly available.",
         suggestion: "Try a different video with captions, or the creator needs to add subtitles to their video.",
+        videoId,
       },
       { status: 404 },
     )
@@ -45,6 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to process video",
+        details: error instanceof Error ? error.stack : "Unknown error",
       },
       { status: 500 },
     )
@@ -52,54 +60,58 @@ export async function POST(req: Request) {
 }
 
 async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): Promise<string | null> {
+  console.log(`Attempting to get subtitles for video ${videoId} in language ${preferredLanguage}`)
+
   try {
-    // Method 1: Try YouTube's internal API endpoints
-    const internalApiUrls = [
+    // Method 1: Try direct API endpoints with multiple formats
+    const directApiUrls = [
       `https://www.youtube.com/api/timedtext?lang=${preferredLanguage}&v=${videoId}&fmt=srv3`,
       `https://www.youtube.com/api/timedtext?lang=${preferredLanguage}&v=${videoId}&fmt=vtt`,
       `https://www.youtube.com/api/timedtext?lang=${preferredLanguage}&v=${videoId}`,
+      `https://www.youtube.com/api/timedtext?lang=a.${preferredLanguage}&v=${videoId}`, // Auto-generated
     ]
 
-    for (const url of internalApiUrls) {
+    for (const url of directApiUrls) {
       try {
+        console.log(`Trying direct API: ${url}`)
         const response = await fetch(url, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept:
-              "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5",
+            Accept: "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,*/*;q=0.5",
             "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            DNT: "1",
-            Connection: "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
+            Referer: "https://www.youtube.com/",
           },
         })
 
         if (response.ok) {
           const text = await response.text()
+          console.log(`Response from ${url}:`, text.substring(0, 200))
+
           if (text && (text.includes("<text") || text.includes("<transcript") || text.includes("WEBVTT"))) {
             const parsed = parseSubtitleContent(text)
             if (parsed && parsed.length > 50) {
+              console.log("Successfully parsed subtitles from direct API")
               return parsed
             }
           }
         }
       } catch (e) {
+        console.log(`Direct API failed for ${url}:`, e)
         continue
       }
     }
 
-    // Method 2: Extract from video page with better parsing
-    const pageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    // Method 2: Extract from video page
+    console.log("Trying to extract from video page...")
+    const pageUrl = `https://www.youtube.com/watch?v=${videoId}`
+    const pageResponse = await fetch(pageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "no-cache",
-        Pragma: "no-cache",
       },
     })
 
@@ -108,58 +120,24 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): 
     }
 
     const html = await pageResponse.text()
+    console.log("Video page fetched, length:", html.length)
 
-    // Look for player response data
-    const playerResponseMatch =
-      html.match(/"playerResponse":"(.*?)","playerAds"/) || html.match(/var ytInitialPlayerResponse = ({.*?});/)
-
-    if (playerResponseMatch) {
-      try {
-        let playerData = playerResponseMatch[1]
-        if (playerResponseMatch[0].includes("playerResponse")) {
-          playerData = playerData.replace(/\\"/g, '"').replace(/\\n/g, "").replace(/\\t/g, "")
-        }
-
-        const playerResponse = JSON.parse(playerData)
-
-        if (playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks) {
-          const tracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks
-
-          // Find best matching track
-          const selectedTrack =
-            tracks.find((track: any) => track.languageCode === preferredLanguage) ||
-            tracks.find((track: any) => track.languageCode.startsWith(preferredLanguage.split("-")[0])) ||
-            tracks.find((track: any) => track.languageCode === "en" || track.languageCode.startsWith("en")) ||
-            tracks[0]
-
-          if (selectedTrack?.baseUrl) {
-            const subtitleResponse = await fetch(selectedTrack.baseUrl)
-            if (subtitleResponse.ok) {
-              const xmlData = await subtitleResponse.text()
-              const parsed = parseSubtitleContent(xmlData)
-              if (parsed && parsed.length > 50) {
-                return parsed
-              }
-            }
-          }
-        }
-      } catch (parseError) {
-        console.error("Error parsing player response:", parseError)
-      }
-    }
-
-    // Method 3: Look for caption tracks in different formats
+    // Look for different caption track patterns
     const captionPatterns = [
       /"captionTracks":\s*(\[.*?\])/,
       /"captions":\s*{[^}]*"playerCaptionsTracklistRenderer":\s*{[^}]*"captionTracks":\s*(\[.*?\])/,
+      /playerCaptionsTracklistRenderer.*?captionTracks.*?(\[.*?\])/,
     ]
 
     for (const pattern of captionPatterns) {
       const match = html.match(pattern)
       if (match) {
         try {
+          console.log("Found caption tracks pattern")
           const captionTracks = JSON.parse(match[1])
+          console.log("Caption tracks:", captionTracks)
 
+          // Find best matching track
           const selectedTrack =
             captionTracks.find((track: any) => track.languageCode === preferredLanguage) ||
             captionTracks.find((track: any) => track.languageCode?.startsWith(preferredLanguage.split("-")[0])) ||
@@ -167,42 +145,44 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): 
             captionTracks[0]
 
           if (selectedTrack?.baseUrl) {
+            console.log("Selected track:", selectedTrack)
             const subtitleResponse = await fetch(selectedTrack.baseUrl)
             if (subtitleResponse.ok) {
               const xmlData = await subtitleResponse.text()
               const parsed = parseSubtitleContent(xmlData)
               if (parsed && parsed.length > 50) {
+                console.log("Successfully parsed subtitles from page extraction")
                 return parsed
               }
             }
           }
         } catch (parseError) {
+          console.error("Error parsing caption tracks:", parseError)
           continue
         }
       }
     }
 
-    // Method 4: Try alternative language codes
+    // Method 3: Try alternative language codes
     const alternativeLanguages = [
-      preferredLanguage,
-      preferredLanguage.split("-")[0],
-      "en",
-      "en-US",
-      "en-GB",
       "a." + preferredLanguage, // Auto-generated
       "a.en", // Auto-generated English
+      preferredLanguage.split("-")[0], // Base language
+      "en",
+      "en-US",
+      "en-GB", // English fallbacks
     ]
 
     for (const lang of alternativeLanguages) {
       const urls = [
         `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=srv3`,
         `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=vtt`,
-        `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=ttml`,
         `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}`,
       ]
 
       for (const url of urls) {
         try {
+          console.log(`Trying alternative language: ${url}`)
           const response = await fetch(url, {
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -215,6 +195,7 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): 
             if (text && text.length > 100) {
               const parsed = parseSubtitleContent(text)
               if (parsed && parsed.length > 50) {
+                console.log(`Successfully found subtitles with language: ${lang}`)
                 return parsed
               }
             }
@@ -225,6 +206,7 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): 
       }
     }
 
+    console.log("All subtitle extraction methods failed")
     return null
   } catch (error) {
     console.error("Error getting YouTube subtitles:", error)
@@ -234,6 +216,8 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string): 
 
 function parseSubtitleContent(content: string): string {
   try {
+    console.log("Parsing subtitle content, type:", content.substring(0, 100))
+
     // Handle WEBVTT format
     if (content.includes("WEBVTT")) {
       const lines = content.split("\n")
@@ -243,9 +227,13 @@ function parseSubtitleContent(content: string): string {
           !line.includes("WEBVTT") &&
           !line.includes("-->") &&
           !line.match(/^\d+$/) &&
-          !line.match(/^\d{2}:\d{2}:\d{2}/),
+          !line.match(/^\d{2}:\d{2}:\d{2}/) &&
+          !line.includes("NOTE") &&
+          !line.includes("STYLE"),
       )
-      return textLines.join(" ").replace(/\s+/g, " ").trim()
+      const result = textLines.join(" ").replace(/\s+/g, " ").trim()
+      console.log("WEBVTT parsed result length:", result.length)
+      return result
     }
 
     // Handle XML/SRT formats
@@ -253,7 +241,6 @@ function parseSubtitleContent(content: string): string {
       /<text[^>]*>(.*?)<\/text>/g,
       /<transcript><text[^>]*>(.*?)<\/text><\/transcript>/g,
       /<p[^>]*>(.*?)<\/p>/g,
-      /\d+\n\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}\n(.*?)(?=\n\n|\n\d+\n|$)/g,
     ]
 
     let allMatches: string[] = []
@@ -263,7 +250,7 @@ function parseSubtitleContent(content: string): string {
       let match
 
       while ((match = pattern.exec(content)) !== null) {
-        let text = match[1] || match[0]
+        let text = match[1]
 
         // Clean up the text
         text = text
@@ -288,27 +275,9 @@ function parseSubtitleContent(content: string): string {
       }
     }
 
-    if (allMatches.length === 0) {
-      // Try simple text extraction as fallback
-      const cleanContent = content
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/\d{2}:\d{2}:\d{2}[.,]\d{3}/g, "") // Remove timestamps
-        .replace(/\d+\n/g, "") // Remove line numbers
-        .replace(/-->/g, "") // Remove arrow indicators
-        .replace(/\s+/g, " ")
-        .trim()
-
-      if (cleanContent && cleanContent.length > 50) {
-        return cleanContent
-      }
-    }
-
-    return allMatches.join(" ").trim()
+    const result = allMatches.join(" ").trim()
+    console.log("XML parsed result length:", result.length)
+    return result
   } catch (error) {
     console.error("Error parsing subtitle content:", error)
     return ""
@@ -316,12 +285,10 @@ function parseSubtitleContent(content: string): string {
 }
 
 async function saveTranscription(videoId: string, transcript: string, service: string, language: string) {
-  // This would save to a database in a real implementation
   console.log("Saving transcription:", {
     videoId,
     service,
     language,
     length: transcript.length,
-    preview: transcript.substring(0, 100) + "...",
   })
 }

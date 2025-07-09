@@ -11,14 +11,24 @@ class YouTubeTranscriberPopup {
   }
 
   async init() {
-    await this.getCurrentTab()
-    this.setupEventListeners()
-    this.checkYouTubePage()
+    try {
+      await this.getCurrentTab()
+      this.setupEventListeners()
+      this.checkYouTubePage()
+    } catch (error) {
+      console.error("Initialization error:", error)
+      this.showStatus("Extension initialization failed", "error")
+    }
   }
 
   async getCurrentTab() {
-    const [tab] = await window.chrome.tabs.query({ active: true, currentWindow: true })
-    this.currentTab = tab
+    try {
+      const [tab] = await window.chrome.tabs.query({ active: true, currentWindow: true })
+      this.currentTab = tab
+    } catch (error) {
+      console.error("Failed to get current tab:", error)
+      throw error
+    }
   }
 
   setupEventListeners() {
@@ -69,7 +79,10 @@ class YouTubeTranscriberPopup {
       // Get video info from our API
       const response = await fetch(`${this.apiBase}/api/video-info`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ videoId: this.videoId }),
       })
 
@@ -93,7 +106,7 @@ class YouTubeTranscriberPopup {
           captionText.textContent = "No captions detected"
         }
       } else {
-        throw new Error("Failed to get video info")
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
       console.error("Error loading video info:", error)
@@ -124,9 +137,14 @@ class YouTubeTranscriberPopup {
     this.showStatus("Extracting captions from YouTube...", "loading")
 
     try {
+      console.log("Making transcription request:", { videoId: this.videoId, service, language })
+
       const response = await fetch(`${this.apiBase}/api/transcribe`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           videoId: this.videoId,
           service: service === "auto" ? "whisper" : service,
@@ -134,10 +152,13 @@ class YouTubeTranscriberPopup {
         }),
       })
 
+      console.log("Response status:", response.status)
+
       const data = await response.json()
+      console.log("Response data:", data)
 
       if (!response.ok) {
-        throw new Error(data.error || "Transcription failed")
+        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       this.displayResult(data.transcript, data.service, data.language)
@@ -186,6 +207,9 @@ class YouTubeTranscriberPopup {
       }, 2000)
     } catch (error) {
       console.error("Failed to copy:", error)
+      // Fallback for older browsers
+      textarea.select()
+      document.execCommand("copy")
     }
   }
 
@@ -215,7 +239,10 @@ class YouTubeTranscriberPopup {
     try {
       const response = await fetch(`${this.apiBase}/api/enhance`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           transcript: this.currentTranscript,
           action: action,
@@ -226,8 +253,8 @@ class YouTubeTranscriberPopup {
 
       const data = await response.json()
 
-      if (data.error) {
-        throw new Error(data.error)
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       document.getElementById("result-text").value = data.result
