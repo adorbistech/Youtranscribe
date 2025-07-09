@@ -19,6 +19,7 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
+  ExternalLink,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -70,14 +71,19 @@ export default function TranscribePage() {
     if (videoId && url.trim().length > 10) {
       setIsLoadingInfo(true)
       try {
-        const response = await fetch("/api/youtube?action=video-info", {
+        console.log("🔍 Getting video info for:", videoId)
+
+        const response = await fetch("/api/transcribe-simple", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoId }),
+          body: JSON.stringify({ videoId, action: "video-info" }),
         })
+
+        console.log("📡 Video info response:", response.status)
 
         if (response.ok) {
           const info = await response.json()
+          console.log("📺 Video info:", info)
           setVideoInfo(info)
         }
       } catch (error) {
@@ -105,25 +111,38 @@ export default function TranscribePage() {
     setResult(null)
 
     try {
-      console.log("🎯 Making transcription request...")
+      console.log("🎯 Making transcription request for:", videoId)
 
-      const response = await fetch("/api/youtube?action=transcribe", {
+      const response = await fetch("/api/transcribe-simple", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           videoId,
           language: selectedLanguage,
+          action: "transcribe",
         }),
       })
 
       console.log("📡 Response status:", response.status)
+      console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()))
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("❌ Error response:", errorText)
+
+        try {
+          const errorData = JSON.parse(errorText)
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        } catch (parseError) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+      }
 
       const data = await response.json()
       console.log("📄 Response data:", data)
-
-      if (!response.ok) {
-        throw new Error(data.error || "Transcription failed")
-      }
 
       setResult({
         transcript: data.transcript,
@@ -206,13 +225,13 @@ export default function TranscribePage() {
               <div>
                 <label className="block text-sm font-medium mb-2">YouTube URL</label>
                 <Input
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                   value={youtubeUrl}
                   onChange={(e) => handleUrlChange(e.target.value)}
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Supports youtube.com/watch, youtu.be, and youtube.com/embed URLs
+                  Try the Rick Roll video: dQw4w9WgXcQ (known to have captions)
                 </p>
               </div>
 
@@ -365,7 +384,7 @@ export default function TranscribePage() {
                 <div className="text-center text-gray-500 py-12">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Enter a YouTube URL and click "Extract Captions" to get started</p>
-                  <p className="text-sm mt-2">Works best with videos that have closed captions</p>
+                  <p className="text-sm mt-2">Try the Rick Roll video for testing!</p>
                 </div>
               )}
             </CardContent>
@@ -375,15 +394,26 @@ export default function TranscribePage() {
         {/* API Test Section */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>🧪 API Test</CardTitle>
+            <CardTitle>🧪 API Test & Debug</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => window.open("/api/youtube?action=health", "_blank")}>
-                Test Health API
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Button size="sm" variant="outline" onClick={() => window.open("/api/transcribe-simple", "_blank")}>
+                <ExternalLink className="w-4 h-4 mr-1" />
+                Test API
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setYoutubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")}
+              >
+                Load Rick Roll
               </Button>
               <Button size="sm" variant="outline" onClick={() => window.open("/test-api", "_blank")}>
-                Open Test Page
+                Debug Page
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => window.open("/dashboard", "_blank")}>
+                Dashboard
               </Button>
             </div>
           </CardContent>

@@ -1,4 +1,4 @@
-// Updated popup script for single API endpoint
+// Updated popup script for simple API endpoint
 class YouTubeTranscriberPopup {
   constructor() {
     this.apiBase = "https://v0-chrome-extension-guide-livid.vercel.app"
@@ -27,7 +27,7 @@ class YouTubeTranscriberPopup {
   async testAPIConnection() {
     try {
       console.log("🧪 Testing API connection...")
-      const response = await fetch(`${this.apiBase}/api/youtube?action=health`)
+      const response = await fetch(`${this.apiBase}/api/transcribe-simple`)
 
       if (response.ok) {
         const data = await response.json()
@@ -102,10 +102,10 @@ class YouTubeTranscriberPopup {
       const titleEl = document.getElementById("video-title")
       if (titleEl) titleEl.textContent = "Loading video info..."
 
-      const response = await fetch(`${this.apiBase}/api/youtube?action=video-info`, {
+      const response = await fetch(`${this.apiBase}/api/transcribe-simple`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId: this.videoId }),
+        body: JSON.stringify({ videoId: this.videoId, action: "video-info" }),
       })
 
       if (response.ok) {
@@ -165,7 +165,7 @@ class YouTubeTranscriberPopup {
     try {
       console.log("🎯 Starting transcription for:", this.videoId)
 
-      const response = await fetch(`${this.apiBase}/api/youtube?action=transcribe`, {
+      const response = await fetch(`${this.apiBase}/api/transcribe-simple`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -174,21 +174,34 @@ class YouTubeTranscriberPopup {
         body: JSON.stringify({
           videoId: this.videoId,
           language: "en",
+          action: "transcribe",
         }),
       })
 
       console.log("📡 Response status:", response.status)
       console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()))
 
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("❌ Error response:", errorText)
+
+        try {
+          const errorData = JSON.parse(errorText)
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        } catch (parseError) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+      }
+
       const data = await response.json()
       console.log("📄 Response data:", data)
 
-      if (response.ok && data.transcript) {
+      if (data.transcript) {
         this.displayResult(data.transcript, data.service, data.language)
         this.showStatus("Captions extracted successfully!", "success")
         setTimeout(() => this.clearStatus(), 3000)
       } else {
-        throw new Error(data.error || `HTTP ${response.status}`)
+        throw new Error("No transcript in response")
       }
     } catch (error) {
       console.error("❌ Transcription failed:", error)
