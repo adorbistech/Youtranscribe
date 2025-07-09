@@ -1,8 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Mic, Globe, Sparkles, Download, Search, Chrome, Youtube, ArrowRight, LinkIcon } from "lucide-react"
+import { Mic, Globe, Sparkles, Download, Search, Chrome, Youtube, ArrowRight, LinkIcon, FileDown } from "lucide-react"
 
 export default function HomePage() {
   return (
@@ -56,19 +58,127 @@ export default function HomePage() {
                   Paste YouTube URL
                 </Button>
               </Link>
-              <Link href="/dashboard">
-                <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent">
-                  <ArrowRight className="w-5 h-5 mr-2" />
-                  View Dashboard
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 bg-transparent"
+                onClick={() => {
+                  const link = document.createElement("a")
+                  link.href = "/chrome-extension.zip"
+                  link.download = "youtube-transcriber-extension.zip"
+                  link.click()
+                }}
+              >
+                <Chrome className="w-5 h-5 mr-2" />
+                Download Extension
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Chrome Extension Download Section */}
       <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">🚀 Chrome Extension Available</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Get seamless YouTube integration with our Chrome extension - transcribe any video with one click!
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <Card className="p-8 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <Chrome className="w-8 h-8 text-blue-600" />
+                    <h3 className="text-2xl font-bold text-gray-900">Chrome Extension</h3>
+                    <Badge className="bg-green-100 text-green-800">Ready to Install</Badge>
+                  </div>
+
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span>One-click transcription on any YouTube video</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span>Popup interface with AI enhancements</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span>Copy, download, and translate features</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span>Works on all YouTube pages</span>
+                    </li>
+                  </ul>
+
+                  <div className="flex gap-3">
+                    <Button
+                      size="lg"
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        const link = document.createElement("a")
+                        link.href = "/chrome-extension.zip"
+                        link.download = "youtube-transcriber-extension.zip"
+                        link.click()
+                      }}
+                    >
+                      <FileDown className="w-5 h-5 mr-2" />
+                      Download Extension
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link href="/extension-guide">📖 Installation Guide</Link>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-6 shadow-lg">
+                  <h4 className="font-semibold mb-4 text-center">📋 Quick Install Steps</h4>
+                  <ol className="space-y-3 text-sm">
+                    <li className="flex gap-3">
+                      <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        1
+                      </span>
+                      <span>Download the extension ZIP file</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        2
+                      </span>
+                      <span>Extract files to a folder</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        3
+                      </span>
+                      <span>Go to chrome://extensions/</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        4
+                      </span>
+                      <span>Enable Developer mode</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        5
+                      </span>
+                      <span>Click "Load unpacked" and select folder</span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Powerful Features</h2>
@@ -141,11 +251,11 @@ export default function HomePage() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                  <LinkIcon className="w-6 h-6 text-indigo-600" />
+                  <Chrome className="w-6 h-6 text-indigo-600" />
                 </div>
-                <CardTitle>URL Processing</CardTitle>
+                <CardTitle>Chrome Extension</CardTitle>
                 <CardDescription>
-                  Simply paste any YouTube URL to instantly extract subtitles or generate AI transcriptions
+                  Seamlessly integrated Chrome extension that adds transcription buttons directly to YouTube pages
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -154,7 +264,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">How It Works</h2>
@@ -193,86 +303,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Quick Start */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Quick Start</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Choose your preferred way to transcribe YouTube videos</p>
-          </div>
-
-          <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card className="p-6 hover:shadow-lg transition-shadow">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <LinkIcon className="w-6 h-6 text-blue-600" />
-                  Paste YouTube URL
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  The fastest way to transcribe any YouTube video. Just paste the URL and get instant results.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-600 mb-4">
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    Works with any YouTube URL format
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    Automatic subtitle extraction
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    AI fallback for videos without captions
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    Instant AI enhancements
-                  </li>
-                </ul>
-                <Link href="/transcribe">
-                  <Button className="w-full">
-                    <LinkIcon className="w-4 h-4 mr-2" />
-                    Start Transcribing
-                  </Button>
-                </Link>
-              </Card>
-
-              <Card className="p-6 hover:shadow-lg transition-shadow">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Chrome className="w-6 h-6 text-green-600" />
-                  Chrome Extension
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Install our Chrome extension for seamless integration directly on YouTube pages.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-600 mb-4">
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    Transcribe button on every video
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    One-click transcription
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    Popup interface for quick access
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    Coming soon to Chrome Web Store
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full bg-transparent" disabled>
-                  <Chrome className="w-4 h-4 mr-2" />
-                  Extension Coming Soon
-                </Button>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-16 bg-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
@@ -287,16 +317,20 @@ export default function HomePage() {
                 Paste YouTube URL
               </Button>
             </Link>
-            <Link href="/dashboard">
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg px-8 border-white text-white hover:bg-white hover:text-blue-600 bg-transparent"
-              >
-                <ArrowRight className="w-5 h-5 mr-2" />
-                View Dashboard
-              </Button>
-            </Link>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 border-white text-white hover:bg-white hover:text-blue-600 bg-transparent"
+              onClick={() => {
+                const link = document.createElement("a")
+                link.href = "/chrome-extension.zip"
+                link.download = "youtube-transcriber-extension.zip"
+                link.click()
+              }}
+            >
+              <Chrome className="w-5 h-5 mr-2" />
+              Download Extension
+            </Button>
           </div>
         </div>
       </section>
