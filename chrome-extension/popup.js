@@ -1,10 +1,10 @@
-// Fixed popup script with proper error handling
+// Updated popup script for single API endpoint
 class YouTubeTranscriberPopup {
   constructor() {
     this.apiBase = "https://v0-chrome-extension-guide-livid.vercel.app"
     this.currentTab = null
     this.videoId = null
-    this.chrome = window.chrome // Declare the chrome variable
+    this.chrome = window.chrome
     this.init()
   }
 
@@ -27,7 +27,7 @@ class YouTubeTranscriberPopup {
   async testAPIConnection() {
     try {
       console.log("🧪 Testing API connection...")
-      const response = await fetch(`${this.apiBase}/api/health`)
+      const response = await fetch(`${this.apiBase}/api/youtube?action=health`)
 
       if (response.ok) {
         const data = await response.json()
@@ -102,7 +102,7 @@ class YouTubeTranscriberPopup {
       const titleEl = document.getElementById("video-title")
       if (titleEl) titleEl.textContent = "Loading video info..."
 
-      const response = await fetch(`${this.apiBase}/api/video-info`, {
+      const response = await fetch(`${this.apiBase}/api/youtube?action=video-info`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoId: this.videoId }),
@@ -165,7 +165,7 @@ class YouTubeTranscriberPopup {
     try {
       console.log("🎯 Starting transcription for:", this.videoId)
 
-      const response = await fetch(`${this.apiBase}/api/transcribe`, {
+      const response = await fetch(`${this.apiBase}/api/youtube?action=transcribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

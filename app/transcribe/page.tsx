@@ -14,7 +14,6 @@ import {
   Download,
   Youtube,
   Sparkles,
-  Globe,
   FileText,
   ArrowLeft,
   CheckCircle,
@@ -71,7 +70,7 @@ export default function TranscribePage() {
     if (videoId && url.trim().length > 10) {
       setIsLoadingInfo(true)
       try {
-        const response = await fetch("/api/video-info", {
+        const response = await fetch("/api/youtube?action=video-info", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ videoId }),
@@ -106,17 +105,21 @@ export default function TranscribePage() {
     setResult(null)
 
     try {
-      const response = await fetch("/api/transcribe", {
+      console.log("🎯 Making transcription request...")
+
+      const response = await fetch("/api/youtube?action=transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           videoId,
-          service: selectedService === "auto" ? "whisper" : selectedService,
           language: selectedLanguage,
         }),
       })
 
+      console.log("📡 Response status:", response.status)
+
       const data = await response.json()
+      console.log("📄 Response data:", data)
 
       if (!response.ok) {
         throw new Error(data.error || "Transcription failed")
@@ -171,37 +174,6 @@ export default function TranscribePage() {
       a.download = `transcript_${result.videoId}.txt`
       a.click()
       URL.revokeObjectURL(url)
-    }
-  }
-
-  const enhanceTranscript = async (action: string, targetLanguage?: string) => {
-    if (!result) return
-
-    setIsLoading(true)
-    try {
-      const response = await fetch("/api/enhance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript: result.transcript,
-          action,
-          targetLanguage,
-          model: "deepseek/deepseek-r1-distill-qwen-14b:free",
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
-      setResult((prev) => (prev ? { ...prev, transcript: data.result } : null))
-    } catch (error) {
-      console.error("Enhancement error:", error)
-      setError("Enhancement failed")
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -388,49 +360,6 @@ export default function TranscribePage() {
                       Download
                     </Button>
                   </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      AI Enhancements
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => enhanceTranscript("summarize")}
-                        disabled={isLoading}
-                      >
-                        📝 Summarize
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => enhanceTranscript("extract-key-points")}
-                        disabled={isLoading}
-                      >
-                        🎯 Key Points
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => enhanceTranscript("translate", "es")}
-                        disabled={isLoading}
-                      >
-                        <Globe className="w-4 h-4 mr-1" />
-                        Spanish
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => enhanceTranscript("translate", "fr")}
-                        disabled={isLoading}
-                      >
-                        <Globe className="w-4 h-4 mr-1" />
-                        French
-                      </Button>
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-12">
@@ -443,40 +372,19 @@ export default function TranscribePage() {
           </Card>
         </div>
 
-        {/* Tips */}
+        {/* API Test Section */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>💡 Tips for Best Results</CardTitle>
+            <CardTitle>🧪 API Test</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <h3 className="font-medium mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  Videos with Captions
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Works best with videos that have closed captions (CC) enabled by the creator
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-blue-600" />
-                  Multiple Languages
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Select your preferred language, or we'll try to find English captions as fallback
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-600" />
-                  AI Enhancement
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Use AI features to summarize, translate, or extract key points from transcripts
-                </p>
-              </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => window.open("/api/youtube?action=health", "_blank")}>
+                Test Health API
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => window.open("/test-api", "_blank")}>
+                Open Test Page
+              </Button>
             </div>
           </CardContent>
         </Card>
