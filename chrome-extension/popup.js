@@ -1,4 +1,4 @@
-// Updated popup script for simple API endpoint
+// Updated popup script for youtube-simple API
 class YouTubeTranscriberPopup {
   constructor() {
     this.apiBase = "https://v0-chrome-extension-guide-livid.vercel.app"
@@ -27,7 +27,7 @@ class YouTubeTranscriberPopup {
   async testAPIConnection() {
     try {
       console.log("🧪 Testing API connection...")
-      const response = await fetch(`${this.apiBase}/api/transcribe-simple`)
+      const response = await fetch(`${this.apiBase}/api/youtube-simple`)
 
       if (response.ok) {
         const data = await response.json()
@@ -102,10 +102,16 @@ class YouTubeTranscriberPopup {
       const titleEl = document.getElementById("video-title")
       if (titleEl) titleEl.textContent = "Loading video info..."
 
-      const response = await fetch(`${this.apiBase}/api/transcribe-simple`, {
+      const response = await fetch(`${this.apiBase}/api/youtube-simple`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId: this.videoId, action: "video-info" }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          videoId: this.videoId,
+          action: "video-info",
+        }),
       })
 
       if (response.ok) {
@@ -165,7 +171,7 @@ class YouTubeTranscriberPopup {
     try {
       console.log("🎯 Starting transcription for:", this.videoId)
 
-      const response = await fetch(`${this.apiBase}/api/transcribe-simple`, {
+      const response = await fetch(`${this.apiBase}/api/youtube-simple`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

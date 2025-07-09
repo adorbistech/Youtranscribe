@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Info,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -48,6 +49,7 @@ export default function TranscribePage() {
   const [error, setError] = useState<string | null>(null)
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [apiStatus, setApiStatus] = useState<string>("unknown")
 
   const extractVideoId = (url: string): string | null => {
     const patterns = [
@@ -62,6 +64,31 @@ export default function TranscribePage() {
     return null
   }
 
+  const testAPI = async () => {
+    try {
+      console.log("🧪 Testing API...")
+      setApiStatus("testing")
+
+      const response = await fetch("/api/youtube-simple", {
+        method: "GET",
+      })
+
+      console.log("📡 API test response:", response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log("✅ API test successful:", data)
+        setApiStatus("healthy")
+      } else {
+        console.error("❌ API test failed:", response.status)
+        setApiStatus("error")
+      }
+    } catch (error) {
+      console.error("❌ API test error:", error)
+      setApiStatus("error")
+    }
+  }
+
   const handleUrlChange = async (url: string) => {
     setYoutubeUrl(url)
     setError(null)
@@ -73,10 +100,16 @@ export default function TranscribePage() {
       try {
         console.log("🔍 Getting video info for:", videoId)
 
-        const response = await fetch("/api/transcribe-simple", {
+        const response = await fetch("/api/youtube-simple", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoId, action: "video-info" }),
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            videoId,
+            action: "video-info",
+          }),
         })
 
         console.log("📡 Video info response:", response.status)
@@ -85,6 +118,9 @@ export default function TranscribePage() {
           const info = await response.json()
           console.log("📺 Video info:", info)
           setVideoInfo(info)
+        } else {
+          const errorText = await response.text()
+          console.error("❌ Video info error:", errorText)
         }
       } catch (error) {
         console.error("Failed to get video info:", error)
@@ -113,7 +149,7 @@ export default function TranscribePage() {
     try {
       console.log("🎯 Making transcription request for:", videoId)
 
-      const response = await fetch("/api/transcribe-simple", {
+      const response = await fetch("/api/youtube-simple", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -196,6 +232,11 @@ export default function TranscribePage() {
     }
   }
 
+  const loadRickRoll = () => {
+    setYoutubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    handleUrlChange("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -211,6 +252,36 @@ export default function TranscribePage() {
           </div>
           <p className="text-gray-600">Extract subtitles and captions from any YouTube video</p>
         </div>
+
+        {/* API Status */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">API Status:</span>
+                <Badge
+                  variant={apiStatus === "healthy" ? "default" : apiStatus === "error" ? "destructive" : "secondary"}
+                >
+                  {apiStatus === "healthy"
+                    ? "✅ Healthy"
+                    : apiStatus === "error"
+                      ? "❌ Error"
+                      : apiStatus === "testing"
+                        ? "🔄 Testing"
+                        : "❓ Unknown"}
+                </Badge>
+              </div>
+              <Button size="sm" variant="outline" onClick={testAPI} disabled={apiStatus === "testing"}>
+                {apiStatus === "testing" ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                )}
+                Test API
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
@@ -230,9 +301,12 @@ export default function TranscribePage() {
                   onChange={(e) => handleUrlChange(e.target.value)}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Try the Rick Roll video: dQw4w9WgXcQ (known to have captions)
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-xs text-gray-500">Try the Rick Roll video (known to have captions)</p>
+                  <Button size="sm" variant="outline" onClick={loadRickRoll}>
+                    Load Rick Roll
+                  </Button>
+                </div>
               </div>
 
               {/* Video Info */}
@@ -391,26 +465,22 @@ export default function TranscribePage() {
           </Card>
         </div>
 
-        {/* API Test Section */}
+        {/* Debug Section */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>🧪 API Test & Debug</CardTitle>
+            <CardTitle>🧪 Debug & Testing</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <Button size="sm" variant="outline" onClick={() => window.open("/api/transcribe-simple", "_blank")}>
+              <Button size="sm" variant="outline" onClick={() => window.open("/api/youtube-simple", "_blank")}>
                 <ExternalLink className="w-4 h-4 mr-1" />
-                Test API
+                Test API Direct
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setYoutubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")}
-              >
+              <Button size="sm" variant="outline" onClick={loadRickRoll}>
                 Load Rick Roll
               </Button>
-              <Button size="sm" variant="outline" onClick={() => window.open("/test-api", "_blank")}>
-                Debug Page
+              <Button size="sm" variant="outline" onClick={testAPI}>
+                Test Connection
               </Button>
               <Button size="sm" variant="outline" onClick={() => window.open("/dashboard", "_blank")}>
                 Dashboard
