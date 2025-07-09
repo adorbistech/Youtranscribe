@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube AI Transcriber",
+  "version": "1.0.0",
+  "description": "AI-powered YouTube video transcription with translation and summarization",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon16.png"
+  },
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "host_permissions": ["https://www.youtube.com/*", "https://your-vercel-app.vercel.app/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content-script.js"],
+      "css": ["content-styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
+}
